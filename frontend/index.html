@@ -1,0 +1,790 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interview Agent Tester</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, sans-serif; background: #0f0f0f; color: #fff; min-height: 100vh; }
+    .container { max-width: 800px; margin: 0 auto; padding: 2rem; }
+    h1 { margin-bottom: 2rem; font-weight: 500; }
+    .form-group { margin-bottom: 1.5rem; }
+    label { display: block; margin-bottom: 0.5rem; color: #888; font-size: 0.875rem; }
+    input, textarea, select { width: 100%; padding: 0.75rem; border: 1px solid #333; border-radius: 0.5rem; background: #1a1a1a; color: #fff; font-size: 1rem; }
+    textarea { min-height: 150px; resize: vertical; font-family: monospace; }
+    button { padding: 0.75rem 1.5rem; border: none; border-radius: 0.5rem; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+    .btn-primary { background: #3b82f6; color: #fff; }
+    .btn-primary:hover { background: #2563eb; }
+    .btn-primary:disabled { background: #1e3a5f; cursor: not-allowed; }
+    .btn-danger { background: #ef4444; color: #fff; }
+    .btn-danger:hover { background: #dc2626; }
+    .btn-secondary { background: #374151; color: #fff; }
+    .btn-secondary:hover { background: #4b5563; }
+    .btn-success { background: #22c55e; color: #fff; }
+    .btn-success:hover { background: #16a34a; }
+    .btn-sm { padding: 0.5rem 1rem; font-size: 0.875rem; }
+    .controls { display: flex; gap: 1rem; margin-top: 2rem; flex-wrap: wrap; }
+    .status { margin-top: 2rem; padding: 1rem; background: #1a1a1a; border-radius: 0.5rem; }
+    .status-indicator { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 0.5rem; }
+    .status-disconnected { background: #666; }
+    .status-connecting { background: #f59e0b; }
+    .status-connected { background: #22c55e; }
+    .visualizer { height: 60px; background: #1a1a1a; border-radius: 0.5rem; margin-top: 1rem; display: flex; align-items: center; justify-content: center; gap: 4px; }
+    .bar { width: 8px; background: #3b82f6; border-radius: 4px; transition: height 0.1s; }
+    .agent-state { margin-top: 1rem; font-size: 0.875rem; color: #888; }
+    .prompt-select { margin-bottom: 2rem; }
+    .prompt-actions { display: flex; gap: 0.5rem; margin-top: 0.5rem; }
+    .advanced-toggle { margin-bottom: 1rem; }
+    .advanced-settings { display: none; padding: 1rem; background: #1a1a1a; border-radius: 0.5rem; margin-bottom: 1.5rem; }
+    .advanced-settings.show { display: block; }
+    .advanced-settings .form-group { margin-bottom: 1rem; }
+    .advanced-settings .form-group:last-child { margin-bottom: 0; }
+
+    /* Modal */
+    .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.8); z-index: 1000; }
+    .modal-overlay.active { display: flex; align-items: center; justify-content: center; }
+    .modal { background: #1a1a1a; border-radius: 0.75rem; width: 90%; max-width: 900px; max-height: 80vh; display: flex; flex-direction: column; }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; padding: 1rem 1.5rem; border-bottom: 1px solid #333; }
+    .modal-header h2 { font-size: 1.25rem; font-weight: 500; }
+    .modal-close { background: none; border: none; color: #888; font-size: 1.5rem; cursor: pointer; padding: 0; }
+    .modal-close:hover { color: #fff; }
+    .modal-tabs { display: flex; border-bottom: 1px solid #333; }
+    .modal-tab { padding: 0.75rem 1.5rem; background: none; border: none; color: #888; cursor: pointer; border-bottom: 2px solid transparent; }
+    .modal-tab:hover { color: #fff; }
+    .modal-tab.active { color: #3b82f6; border-bottom-color: #3b82f6; }
+    .modal-body { flex: 1; overflow: auto; padding: 1rem 1.5rem; }
+    .modal-footer { padding: 1rem 1.5rem; border-top: 1px solid #333; display: flex; justify-content: flex-end; gap: 0.5rem; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .log-entry { padding: 0.5rem 0; border-bottom: 1px solid #222; font-family: monospace; font-size: 0.875rem; }
+    .log-entry:last-child { border-bottom: none; }
+    .log-time { color: #666; margin-right: 0.5rem; }
+    .log-type { padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; margin-right: 0.5rem; }
+    .log-type-info { background: #1e3a5f; color: #60a5fa; }
+    .log-type-agent { background: #14532d; color: #4ade80; }
+    .log-type-user { background: #4c1d95; color: #a78bfa; }
+    .log-type-function { background: #713f12; color: #fbbf24; }
+    .log-type-error { background: #7f1d1d; color: #f87171; }
+    .log-message { color: #e5e5e5; }
+    .transcript-entry { padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 0.5rem; }
+    .transcript-agent { background: #14532d; }
+    .transcript-user { background: #1e3a5f; }
+    .transcript-speaker { font-size: 0.75rem; color: #888; margin-bottom: 0.25rem; }
+    .function-entry { padding: 0.75rem; margin-bottom: 0.5rem; border-radius: 0.5rem; background: #292524; }
+    .function-name { color: #fbbf24; font-weight: 500; }
+    .function-arrow { color: #666; margin: 0 0.5rem; }
+    .function-args, .function-result { font-family: monospace; font-size: 0.875rem; margin-top: 0.5rem; padding: 0.5rem; background: #1a1a1a; border-radius: 0.25rem; white-space: pre-wrap; word-break: break-all; }
+    .empty-state { color: #666; text-align: center; padding: 2rem; }
+    .badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 999px; font-size: 0.75rem; margin-left: 0.5rem; background: #3b82f6; }
+    .loading { opacity: 0.5; pointer-events: none; }
+    .error-message { color: #ef4444; font-size: 0.875rem; margin-top: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Interview Agent Tester</h1>
+
+    <div class="prompt-select">
+      <label for="promptSelect">Select Prompt</label>
+      <select id="promptSelect">
+        <option value="">Custom Configuration</option>
+      </select>
+      <div class="prompt-actions">
+        <button id="newPromptBtn" class="btn-primary btn-sm">+ New</button>
+        <button id="savePromptBtn" class="btn-success btn-sm">Save</button>
+        <button id="deletePromptBtn" class="btn-danger btn-sm" disabled>Delete</button>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="systemPrompt">System Prompt</label>
+      <textarea id="systemPrompt">You are a helpful voice assistant.</textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="greeting">Greeting Message</label>
+      <input type="text" id="greeting" value="Hello! How can I help you today?">
+    </div>
+
+    <div class="form-group">
+      <label for="farewell">Farewell Message</label>
+      <input type="text" id="farewell" value="Goodbye! Have a great day!">
+    </div>
+
+    <div class="advanced-toggle">
+      <button id="advancedToggle" class="btn-secondary btn-sm">Show Advanced Settings</button>
+    </div>
+
+    <div class="advanced-settings" id="advancedSettings">
+      <div class="form-group">
+        <label for="voice">Voice</label>
+        <input type="text" id="voice" value="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc">
+      </div>
+      <div class="form-group">
+        <label for="llm">LLM Model</label>
+        <input type="text" id="llm" value="openai/gpt-4.1-mini">
+      </div>
+      <div class="form-group">
+        <label for="stt">STT Model</label>
+        <input type="text" id="stt" value="assemblyai/universal-streaming:en">
+      </div>
+    </div>
+
+    <div class="controls">
+      <button id="connectBtn" class="btn-primary">Start Call</button>
+      <button id="disconnectBtn" class="btn-danger" disabled>End Call</button>
+      <button id="logsBtn" class="btn-secondary">Logs & Transcript</button>
+    </div>
+
+    <div class="status">
+      <span class="status-indicator status-disconnected" id="statusIndicator"></span>
+      <span id="statusText">Disconnected</span>
+      <div class="agent-state" id="agentState"></div>
+    </div>
+
+    <div class="visualizer" id="visualizer">
+      <div class="bar" style="height: 20px;"></div>
+      <div class="bar" style="height: 20px;"></div>
+      <div class="bar" style="height: 20px;"></div>
+      <div class="bar" style="height: 20px;"></div>
+      <div class="bar" style="height: 20px;"></div>
+    </div>
+  </div>
+
+  <!-- Logs Modal -->
+  <div class="modal-overlay" id="logsModalOverlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h2>Session Details</h2>
+        <button class="modal-close" id="logsModalClose">&times;</button>
+      </div>
+      <div class="modal-tabs">
+        <button class="modal-tab active" data-tab="logs">Logs <span class="badge" id="logsCount">0</span></button>
+        <button class="modal-tab" data-tab="transcript">Transcript <span class="badge" id="transcriptCount">0</span></button>
+        <button class="modal-tab" data-tab="functions">Functions <span class="badge" id="functionsCount">0</span></button>
+      </div>
+      <div class="modal-body">
+        <div class="tab-content active" id="logsTab">
+          <div id="logsContainer"><div class="empty-state">No logs yet</div></div>
+        </div>
+        <div class="tab-content" id="transcriptTab">
+          <div id="transcriptContainer"><div class="empty-state">No transcript yet</div></div>
+        </div>
+        <div class="tab-content" id="functionsTab">
+          <div id="functionsContainer"><div class="empty-state">No function calls yet</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Save Prompt Modal -->
+  <div class="modal-overlay" id="saveModalOverlay">
+    <div class="modal" style="max-width: 500px;">
+      <div class="modal-header">
+        <h2 id="saveModalTitle">Save Prompt</h2>
+        <button class="modal-close" id="saveModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label for="promptName">Prompt Name *</label>
+          <input type="text" id="promptName" placeholder="e.g., Interview Agent">
+        </div>
+        <div class="form-group">
+          <label for="promptDescription">Description (optional)</label>
+          <input type="text" id="promptDescription" placeholder="Brief description of the prompt">
+        </div>
+        <div id="saveError" class="error-message" style="display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button id="saveModalCancel" class="btn-secondary">Cancel</button>
+        <button id="saveModalConfirm" class="btn-success">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal-overlay" id="deleteModalOverlay">
+    <div class="modal" style="max-width: 400px;">
+      <div class="modal-header">
+        <h2>Delete Prompt</h2>
+        <button class="modal-close" id="deleteModalClose">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p>Are you sure you want to delete "<span id="deletePromptName"></span>"?</p>
+        <p style="color: #888; margin-top: 0.5rem;">This action cannot be undone.</p>
+      </div>
+      <div class="modal-footer">
+        <button id="deleteModalCancel" class="btn-secondary">Cancel</button>
+        <button id="deleteModalConfirm" class="btn-danger">Delete</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { Room, RoomEvent, ParticipantKind, DataPacket_Kind } from 'https://esm.sh/livekit-client@2';
+
+    const TOKEN_SERVER = 'http://localhost:3001';
+
+    const state = {
+      logs: [],
+      transcript: [],
+      functions: [],
+      prompts: [],
+      currentPromptId: null,
+    };
+
+    const elements = {
+      promptSelect: document.getElementById('promptSelect'),
+      newPromptBtn: document.getElementById('newPromptBtn'),
+      savePromptBtn: document.getElementById('savePromptBtn'),
+      deletePromptBtn: document.getElementById('deletePromptBtn'),
+      systemPrompt: document.getElementById('systemPrompt'),
+      greeting: document.getElementById('greeting'),
+      farewell: document.getElementById('farewell'),
+      voice: document.getElementById('voice'),
+      llm: document.getElementById('llm'),
+      stt: document.getElementById('stt'),
+      advancedToggle: document.getElementById('advancedToggle'),
+      advancedSettings: document.getElementById('advancedSettings'),
+      connectBtn: document.getElementById('connectBtn'),
+      disconnectBtn: document.getElementById('disconnectBtn'),
+      logsBtn: document.getElementById('logsBtn'),
+      statusIndicator: document.getElementById('statusIndicator'),
+      statusText: document.getElementById('statusText'),
+      agentState: document.getElementById('agentState'),
+      visualizer: document.getElementById('visualizer'),
+      // Logs modal
+      logsModalOverlay: document.getElementById('logsModalOverlay'),
+      logsModalClose: document.getElementById('logsModalClose'),
+      logsContainer: document.getElementById('logsContainer'),
+      transcriptContainer: document.getElementById('transcriptContainer'),
+      functionsContainer: document.getElementById('functionsContainer'),
+      logsCount: document.getElementById('logsCount'),
+      transcriptCount: document.getElementById('transcriptCount'),
+      functionsCount: document.getElementById('functionsCount'),
+      // Save modal
+      saveModalOverlay: document.getElementById('saveModalOverlay'),
+      saveModalTitle: document.getElementById('saveModalTitle'),
+      saveModalClose: document.getElementById('saveModalClose'),
+      saveModalCancel: document.getElementById('saveModalCancel'),
+      saveModalConfirm: document.getElementById('saveModalConfirm'),
+      promptName: document.getElementById('promptName'),
+      promptDescription: document.getElementById('promptDescription'),
+      saveError: document.getElementById('saveError'),
+      // Delete modal
+      deleteModalOverlay: document.getElementById('deleteModalOverlay'),
+      deleteModalClose: document.getElementById('deleteModalClose'),
+      deleteModalCancel: document.getElementById('deleteModalCancel'),
+      deleteModalConfirm: document.getElementById('deleteModalConfirm'),
+      deletePromptName: document.getElementById('deletePromptName'),
+    };
+
+    let room = null;
+    let audioContext = null;
+    let analyser = null;
+
+    // --- Prompts API ---
+    async function loadPrompts() {
+      try {
+        const res = await fetch(`${TOKEN_SERVER}/api/prompts`);
+        if (!res.ok) throw new Error('Failed to load prompts');
+        state.prompts = await res.json();
+        renderPromptSelect();
+      } catch (error) {
+        console.error('Error loading prompts:', error);
+      }
+    }
+
+    async function loadPrompt(id) {
+      try {
+        const res = await fetch(`${TOKEN_SERVER}/api/prompts/${id}`);
+        if (!res.ok) throw new Error('Failed to load prompt');
+        return await res.json();
+      } catch (error) {
+        console.error('Error loading prompt:', error);
+        return null;
+      }
+    }
+
+    async function savePrompt(data, isUpdate = false) {
+      const url = isUpdate
+        ? `${TOKEN_SERVER}/api/prompts/${state.currentPromptId}`
+        : `${TOKEN_SERVER}/api/prompts`;
+      const method = isUpdate ? 'PUT' : 'POST';
+
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to save prompt');
+      }
+
+      return await res.json();
+    }
+
+    async function deletePrompt(id) {
+      const res = await fetch(`${TOKEN_SERVER}/api/prompts/${id}`, {
+        method: 'DELETE',
+      });
+
+      if (!res.ok) {
+        const error = await res.json();
+        throw new Error(error.error || 'Failed to delete prompt');
+      }
+    }
+
+    function renderPromptSelect() {
+      const currentValue = elements.promptSelect.value;
+      elements.promptSelect.innerHTML = '<option value="">Custom Configuration</option>';
+
+      for (const prompt of state.prompts) {
+        const option = document.createElement('option');
+        option.value = prompt.id;
+        option.textContent = prompt.name;
+        elements.promptSelect.appendChild(option);
+      }
+
+      // Restore selection if it still exists
+      if (currentValue && state.prompts.some(p => p.id === currentValue)) {
+        elements.promptSelect.value = currentValue;
+      }
+    }
+
+    // --- Event Handlers ---
+    elements.promptSelect.addEventListener('change', async () => {
+      const id = elements.promptSelect.value;
+      state.currentPromptId = id || null;
+      elements.deletePromptBtn.disabled = !id;
+
+      if (id) {
+        const prompt = await loadPrompt(id);
+        if (prompt) {
+          elements.systemPrompt.value = prompt.systemPrompt;
+          elements.greeting.value = prompt.greeting;
+          elements.farewell.value = prompt.farewell;
+          elements.voice.value = prompt.voice;
+          elements.llm.value = prompt.llm;
+          elements.stt.value = prompt.stt;
+        }
+      }
+    });
+
+    elements.advancedToggle.addEventListener('click', () => {
+      const isShown = elements.advancedSettings.classList.toggle('show');
+      elements.advancedToggle.textContent = isShown ? 'Hide Advanced Settings' : 'Show Advanced Settings';
+    });
+
+    elements.newPromptBtn.addEventListener('click', () => {
+      // Reset to defaults
+      state.currentPromptId = null;
+      elements.promptSelect.value = '';
+      elements.deletePromptBtn.disabled = true;
+      elements.systemPrompt.value = 'You are a helpful voice assistant.';
+      elements.greeting.value = 'Hello! How can I help you today?';
+      elements.farewell.value = 'Goodbye! Have a great day!';
+      elements.voice.value = 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc';
+      elements.llm.value = 'openai/gpt-4.1-mini';
+      elements.stt.value = 'assemblyai/universal-streaming:en';
+      // Open save modal
+      elements.promptName.value = '';
+      elements.promptDescription.value = '';
+      elements.saveModalTitle.textContent = 'Create New Prompt';
+      elements.saveError.style.display = 'none';
+      elements.saveModalOverlay.classList.add('active');
+    });
+
+    elements.savePromptBtn.addEventListener('click', () => {
+      const currentPrompt = state.prompts.find(p => p.id === state.currentPromptId);
+      elements.promptName.value = currentPrompt?.name || '';
+      elements.promptDescription.value = currentPrompt?.description || '';
+      elements.saveModalTitle.textContent = state.currentPromptId ? 'Update Prompt' : 'Save New Prompt';
+      elements.saveError.style.display = 'none';
+      elements.saveModalOverlay.classList.add('active');
+    });
+
+    elements.saveModalClose.addEventListener('click', () => {
+      elements.saveModalOverlay.classList.remove('active');
+    });
+
+    elements.saveModalCancel.addEventListener('click', () => {
+      elements.saveModalOverlay.classList.remove('active');
+    });
+
+    elements.saveModalConfirm.addEventListener('click', async () => {
+      const name = elements.promptName.value.trim();
+      if (!name) {
+        elements.saveError.textContent = 'Name is required';
+        elements.saveError.style.display = 'block';
+        return;
+      }
+
+      const data = {
+        name,
+        description: elements.promptDescription.value.trim() || undefined,
+        systemPrompt: elements.systemPrompt.value,
+        greeting: elements.greeting.value,
+        farewell: elements.farewell.value,
+        voice: elements.voice.value,
+        llm: elements.llm.value,
+        stt: elements.stt.value,
+      };
+
+      try {
+        elements.saveModalConfirm.disabled = true;
+        const saved = await savePrompt(data, !!state.currentPromptId);
+        await loadPrompts();
+        elements.promptSelect.value = saved.id;
+        state.currentPromptId = saved.id;
+        elements.deletePromptBtn.disabled = false;
+        elements.saveModalOverlay.classList.remove('active');
+      } catch (error) {
+        elements.saveError.textContent = error.message;
+        elements.saveError.style.display = 'block';
+      } finally {
+        elements.saveModalConfirm.disabled = false;
+      }
+    });
+
+    elements.deletePromptBtn.addEventListener('click', () => {
+      const currentPrompt = state.prompts.find(p => p.id === state.currentPromptId);
+      if (currentPrompt) {
+        elements.deletePromptName.textContent = currentPrompt.name;
+        elements.deleteModalOverlay.classList.add('active');
+      }
+    });
+
+    elements.deleteModalClose.addEventListener('click', () => {
+      elements.deleteModalOverlay.classList.remove('active');
+    });
+
+    elements.deleteModalCancel.addEventListener('click', () => {
+      elements.deleteModalOverlay.classList.remove('active');
+    });
+
+    elements.deleteModalConfirm.addEventListener('click', async () => {
+      if (!state.currentPromptId) return;
+
+      try {
+        elements.deleteModalConfirm.disabled = true;
+        await deletePrompt(state.currentPromptId);
+        state.currentPromptId = null;
+        elements.promptSelect.value = '';
+        elements.deletePromptBtn.disabled = true;
+        await loadPrompts();
+        elements.deleteModalOverlay.classList.remove('active');
+      } catch (error) {
+        alert('Failed to delete prompt: ' + error.message);
+      } finally {
+        elements.deleteModalConfirm.disabled = false;
+      }
+    });
+
+    // --- Logging functions ---
+    function addLog(type, message) {
+      const entry = { time: new Date(), type, message };
+      state.logs.push(entry);
+      elements.logsCount.textContent = state.logs.length;
+      renderLogs();
+    }
+
+    function addTranscript(speaker, text) {
+      const entry = { time: new Date(), speaker, text };
+      state.transcript.push(entry);
+      elements.transcriptCount.textContent = state.transcript.length;
+      renderTranscript();
+    }
+
+    function addFunction(name, args, result = null) {
+      const existing = state.functions.find(f => f.name === name && f.result === null);
+      if (result !== null && existing) {
+        existing.result = result;
+        existing.resultTime = new Date();
+      } else {
+        state.functions.push({ time: new Date(), name, args, result, resultTime: null });
+      }
+      elements.functionsCount.textContent = state.functions.length;
+      renderFunctions();
+    }
+
+    function formatTime(date) {
+      return date.toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit', fractionalSecondDigits: 3 });
+    }
+
+    function renderLogs() {
+      if (state.logs.length === 0) {
+        elements.logsContainer.innerHTML = '<div class="empty-state">No logs yet</div>';
+        return;
+      }
+      elements.logsContainer.innerHTML = state.logs.map(log => `
+        <div class="log-entry">
+          <span class="log-time">${formatTime(log.time)}</span>
+          <span class="log-type log-type-${log.type}">${log.type.toUpperCase()}</span>
+          <span class="log-message">${escapeHtml(log.message)}</span>
+        </div>
+      `).join('');
+      elements.logsContainer.scrollTop = elements.logsContainer.scrollHeight;
+    }
+
+    function renderTranscript() {
+      if (state.transcript.length === 0) {
+        elements.transcriptContainer.innerHTML = '<div class="empty-state">No transcript yet</div>';
+        return;
+      }
+      elements.transcriptContainer.innerHTML = state.transcript.map(t => `
+        <div class="transcript-entry transcript-${t.speaker}">
+          <div class="transcript-speaker">${t.speaker === 'agent' ? 'Agent' : 'User'} - ${formatTime(t.time)}</div>
+          <div>${escapeHtml(t.text)}</div>
+        </div>
+      `).join('');
+      elements.transcriptContainer.scrollTop = elements.transcriptContainer.scrollHeight;
+    }
+
+    function renderFunctions() {
+      if (state.functions.length === 0) {
+        elements.functionsContainer.innerHTML = '<div class="empty-state">No function calls yet</div>';
+        return;
+      }
+      elements.functionsContainer.innerHTML = state.functions.map(f => `
+        <div class="function-entry">
+          <div>
+            <span class="function-name">${escapeHtml(f.name)}</span>
+            <span class="log-time">${formatTime(f.time)}</span>
+          </div>
+          <div class="function-args"><strong>Args:</strong> ${escapeHtml(JSON.stringify(f.args, null, 2))}</div>
+          ${f.result !== null ? `
+            <div class="function-args"><strong>Result:</strong> ${escapeHtml(JSON.stringify(f.result, null, 2))}</div>
+          ` : '<div class="function-args"><strong>Result:</strong> <em>pending...</em></div>'}
+        </div>
+      `).join('');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function clearState() {
+      state.logs = [];
+      state.transcript = [];
+      state.functions = [];
+      elements.logsCount.textContent = '0';
+      elements.transcriptCount.textContent = '0';
+      elements.functionsCount.textContent = '0';
+      renderLogs();
+      renderTranscript();
+      renderFunctions();
+    }
+
+    // --- Modal handlers ---
+    elements.logsBtn.addEventListener('click', () => {
+      elements.logsModalOverlay.classList.add('active');
+    });
+
+    elements.logsModalClose.addEventListener('click', () => {
+      elements.logsModalOverlay.classList.remove('active');
+    });
+
+    elements.logsModalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.logsModalOverlay) {
+        elements.logsModalOverlay.classList.remove('active');
+      }
+    });
+
+    elements.saveModalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.saveModalOverlay) {
+        elements.saveModalOverlay.classList.remove('active');
+      }
+    });
+
+    elements.deleteModalOverlay.addEventListener('click', (e) => {
+      if (e.target === elements.deleteModalOverlay) {
+        elements.deleteModalOverlay.classList.remove('active');
+      }
+    });
+
+    document.querySelectorAll('.modal-tab').forEach(tab => {
+      tab.addEventListener('click', () => {
+        document.querySelectorAll('.modal-tab').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        tab.classList.add('active');
+        document.getElementById(`${tab.dataset.tab}Tab`).classList.add('active');
+      });
+    });
+
+    elements.connectBtn.addEventListener('click', connect);
+    elements.disconnectBtn.addEventListener('click', disconnect);
+
+    function updateStatus(status, text) {
+      elements.statusIndicator.className = `status-indicator status-${status}`;
+      elements.statusText.textContent = text;
+      addLog('info', `Status: ${text}`);
+    }
+
+    async function connect() {
+      try {
+        clearState();
+        elements.connectBtn.disabled = true;
+        updateStatus('connecting', 'Connecting...');
+
+        const roomName = `test-${Date.now()}`;
+        const participantName = `user-${Math.random().toString(36).slice(2, 8)}`;
+
+        addLog('info', `Creating room: ${roomName}`);
+
+        const response = await fetch(`${TOKEN_SERVER}/api/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            roomName,
+            participantName,
+            agentConfig: {
+              systemPrompt: elements.systemPrompt.value,
+              greeting: elements.greeting.value,
+              farewell: elements.farewell.value,
+              voice: elements.voice.value,
+              llm: elements.llm.value,
+              stt: elements.stt.value,
+            },
+          }),
+        });
+
+        if (!response.ok) throw new Error('Failed to get token');
+
+        const { token, url } = await response.json();
+        addLog('info', `Got token, connecting to ${url}`);
+
+        room = new Room();
+
+        room.on(RoomEvent.ParticipantConnected, (participant) => {
+          addLog('info', `Participant connected: ${participant.identity} (${participant.kind === ParticipantKind.AGENT ? 'Agent' : 'User'})`);
+          if (participant.kind === ParticipantKind.AGENT) {
+            elements.agentState.textContent = 'Agent connected';
+          }
+        });
+
+        room.on(RoomEvent.ParticipantDisconnected, (participant) => {
+          addLog('info', `Participant disconnected: ${participant.identity}`);
+        });
+
+        room.on(RoomEvent.ParticipantAttributeChanged, (key, value, participant) => {
+          if (participant.kind === ParticipantKind.AGENT) {
+            addLog('agent', `State: ${value}`);
+            if (key === 'lk.agent.state') {
+              elements.agentState.textContent = `Agent: ${value}`;
+            }
+          }
+        });
+
+        room.on(RoomEvent.TrackSubscribed, (track, publication, participant) => {
+          addLog('info', `Track subscribed: ${track.kind} from ${participant.identity}`);
+          if (track.kind === 'audio' && participant.kind === ParticipantKind.AGENT) {
+            const audioEl = track.attach();
+            document.body.appendChild(audioEl);
+            setupVisualizer(track);
+          }
+        });
+
+        room.on(RoomEvent.DataReceived, (payload, participant, kind, topic) => {
+          try {
+            const decoder = new TextDecoder();
+            const data = JSON.parse(decoder.decode(payload));
+            addLog('info', `Data received [${topic}]: ${JSON.stringify(data)}`);
+
+            if (data.type === 'transcription') {
+              const speaker = participant?.kind === ParticipantKind.AGENT ? 'agent' : 'user';
+              addTranscript(speaker, data.text);
+            }
+
+            if (data.type === 'function_call') {
+              addFunction(data.name, data.arguments);
+            }
+
+            if (data.type === 'function_result') {
+              addFunction(data.name, null, data.result);
+            }
+          } catch (e) {
+            addLog('info', `Data received (raw): ${new TextDecoder().decode(payload)}`);
+          }
+        });
+
+        // Listen for transcription streams
+        room.on(RoomEvent.TranscriptionReceived, (segments, participant) => {
+          const speaker = participant?.kind === ParticipantKind.AGENT ? 'agent' : 'user';
+          segments.forEach(segment => {
+            if (segment.final) {
+              addTranscript(speaker, segment.text);
+              addLog(speaker, segment.text);
+            }
+          });
+        });
+
+        room.on(RoomEvent.Disconnected, () => {
+          updateStatus('disconnected', 'Disconnected');
+          elements.connectBtn.disabled = false;
+          elements.disconnectBtn.disabled = true;
+          elements.agentState.textContent = '';
+        });
+
+        await room.connect(url, token);
+        addLog('info', 'Connected to room');
+
+        await room.localParticipant.setMicrophoneEnabled(true);
+        addLog('info', 'Microphone enabled');
+
+        updateStatus('connected', 'Connected');
+        elements.disconnectBtn.disabled = false;
+
+      } catch (error) {
+        console.error('Connection error:', error);
+        addLog('error', `Connection error: ${error.message}`);
+        updateStatus('disconnected', `Error: ${error.message}`);
+        elements.connectBtn.disabled = false;
+      }
+    }
+
+    async function disconnect() {
+      if (room) {
+        addLog('info', 'Disconnecting...');
+        await room.disconnect();
+        room = null;
+      }
+    }
+
+    function setupVisualizer(track) {
+      const bars = elements.visualizer.querySelectorAll('.bar');
+
+      audioContext = new AudioContext();
+      const source = audioContext.createMediaStreamSource(new MediaStream([track.mediaStreamTrack]));
+      analyser = audioContext.createAnalyser();
+      analyser.fftSize = 32;
+      source.connect(analyser);
+
+      const dataArray = new Uint8Array(analyser.frequencyBinCount);
+
+      function animate() {
+        if (!analyser) return;
+        analyser.getByteFrequencyData(dataArray);
+
+        bars.forEach((bar, i) => {
+          const value = dataArray[i * 2] || 0;
+          const height = Math.max(10, (value / 255) * 50);
+          bar.style.height = `${height}px`;
+        });
+
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+    }
+
+    // --- Initialize ---
+    loadPrompts();
+  </script>
+</body>
+</html>
