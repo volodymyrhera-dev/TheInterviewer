@@ -12,6 +12,7 @@ import { BackgroundVoiceCancellation } from '@livekit/noise-cancellation-node';
 import { fileURLToPath } from 'node:url';
 import { InterviewAgent } from './agent/interview-agent.js';
 import { parseAgentConfig } from './agent/config-parser.js';
+import { sendFarewell } from './features/farewell/index.js';
 import './config/env.js';
 
 export default defineAgent({
@@ -30,16 +31,25 @@ export default defineAgent({
       llm: config.llm,
       tts: config.voice,
       turnDetection: new livekit.turnDetector.MultilingualModel(),
-      preemptiveGeneration: true,
-      allowInterruptions: true,
+      voiceOptions: {
+        preemptiveGeneration: true,
+        allowInterruptions: true,
+      },
     });
 
+    // Set the context for agent tools (needed for end_call)
+    agent.setContext(session, ctx.room);
+
+    // Handle unexpected participant disconnect
     ctx.room.on('participantDisconnected', async (participant) => {
       if (participant.identity !== ctx.room.localParticipant?.identity) {
-        await session.say(agent.farewell);
+        await sendFarewell(session, agent.farewell);
       }
     });
 
+    await ctx.connect();
+
+    // Start session - greeting is sent via agent's onEnter lifecycle hook
     await session.start({
       agent,
       room: ctx.room,
@@ -47,10 +57,6 @@ export default defineAgent({
         noiseCancellation: BackgroundVoiceCancellation(),
       },
     });
-
-    await ctx.connect();
-
-    await session.say(agent.greeting, { allowInterruptions: false });
   },
 });
 

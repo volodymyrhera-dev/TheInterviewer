@@ -2,7 +2,7 @@ import { AgentConfigSchema, type AgentConfig } from '../config/types.js';
 
 const DEFAULT_CONFIG: AgentConfig = {
   systemPrompt: 'You are a helpful voice assistant.',
-  greeting: 'Hello! How can I help you today?',
+  greeting: 'Hello Volodymyr! Do you have time to talk?',
   farewell: 'Goodbye! Have a great day!',
   voice: 'cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc',
   llm: 'openai/gpt-4.1-mini',
