@@ -46,8 +46,8 @@ export class InterviewAgent extends voice.Agent {
    */
   override async onEnter(): Promise<void> {
     console.log('[Agent] onEnter - sending greeting:', this.greeting);
-    // Use say() for exact greeting message, don't await to prevent blocking
-    // allowInterruptions: false ensures user hears complete greeting
-    this.session.say(this.greeting, { allowInterruptions: false });
+    // Allow interruptions so user can respond immediately without waiting
+    // for full greeting to complete - reduces perceived latency
+    this.session.say(this.greeting, { allowInterruptions: true });
   }
 }
